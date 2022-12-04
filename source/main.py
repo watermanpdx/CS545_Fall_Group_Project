@@ -298,7 +298,7 @@ def main():
     features = list(data.head())[1:-2]
     Y = np.array(data)[:,-1].astype(int)
     X = np.array(data)[:,1:-2]
-    '''
+
     #Benchmark models
     models = [DecisionTreeClassifier(),
               RandomForestClassifier(),
@@ -317,13 +317,13 @@ def main():
     nodes = [2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,
              100,110,120,130,140,150,160,170,180,190,200]
     plot_tree_size(nodes,X,Y,'tree_size_analysis.png') 
-    '''
+
     #Test performance over pruning values
     plot_pruning(X,Y,filename='pruning_analysis.png')
-    '''
+
     #Train and plot model
     plot_tree(X,Y,features=features,filename='tree_diagram.png')
-    '''
+
 #Execute Main ========================================================
 if __name__ == "__main__":
     main()
