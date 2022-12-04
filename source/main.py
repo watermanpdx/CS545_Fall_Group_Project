@@ -19,6 +19,7 @@ Date:           12/03/2022
 
 #Imports =============================================================
 #General support packages
+import math
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -169,11 +170,6 @@ def plot_greedy_criteria(nodes,X,Y,filename=None):
         entropy.fit(x_train,y_train)
         e_entropy.append(100*entropy.score(x_train,y_train))
 
-        print('\t\tlog loss ...')
-        log = DecisionTreeClassifier(max_leaf_nodes=node,criterion='log_loss')
-        log.fit(x_train,y_train)
-        e_log.append(100*log.score(x_train,y_train))
-
     #Construct plot
     plt.figure('Split Criteria Performance')
 
@@ -183,10 +179,58 @@ def plot_greedy_criteria(nodes,X,Y,filename=None):
     
     plt.plot(nodes,e_gini,linestyle='solid',label='gini')
     plt.plot(nodes,e_entropy,linestyle='dashed',label='cross-entropy')
-    plt.plot(nodes,e_log,linestyle='dotted',label='log-loss')
 
     plt.legend()
 
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
+def plot_info_functions(filename=None):
+    #Plots info metric values across proportions of binary classes
+    #Inputs:    filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+    
+    #Construct X values
+    resolution = 0.01
+    X = [x*resolution for x in range(int(1/resolution)+1)]
+
+    #Compute gini and cross-entropy values
+    gini = []
+    entropy = []
+    for x in X:
+        p0 = x
+        p1 = 1-x
+        gini.append(p0*(1-p0) + p1*(1-p1))
+        if p0 == 0 or p1 == 0:
+            entropy.append(0)
+        else:
+            entropy.append(-p0*math.log2(p0) - p1*math.log2(p1))
+
+    #Construct plot
+    fig,ax1 = plt.subplots()
+    ax2 = plt.twinx()
+    if filename == None:
+        plt.gcf().canvas.set_window_title('Entropy vs Gini')
+
+    plt.title('Information Metrics: Cross-Entropy vs Gini')
+    plt.xlabel('Proportion of Class A vs B')
+    ax1.set_ylabel('Impurity')
+    ax2.set_ylabel('Impurity')
+
+    ax1.plot(X,gini,linestyle='solid',label='gini')
+    ax2.plot(X,entropy,linestyle='dashed',label='cross-entropy')
+
+    ax1.legend(loc=2)
+    ax2.legend(loc=0)
+    
     #Save plot to file or present to user directly
     if filename != None:
         print('Writing plot to file <' + filename + '> ...')
@@ -298,7 +342,7 @@ def main():
     features = list(data.head())[1:-2]
     Y = np.array(data)[:,-1].astype(int)
     X = np.array(data)[:,1:-2]
-
+    
     #Benchmark models
     models = [DecisionTreeClassifier(),
               RandomForestClassifier(),
@@ -307,12 +351,12 @@ def main():
               LogisticRegression()]
     metrics = ['accuracy','precision','recall']
     benchmark(models,metrics,X,Y,filename='results.csv')
-
+    
     #Test performance over greedy optimization methods
     nodes = [2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,
              100,110,120,130,140,150,160,170,180,190,200]
     plot_greedy_criteria(nodes,X,Y,'greedy_criteria_analysis.png')
-
+    
     #Test performance over tree size
     nodes = [2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,
              100,110,120,130,140,150,160,170,180,190,200]
@@ -323,7 +367,10 @@ def main():
 
     #Train and plot model
     plot_tree(X,Y,features=features,filename='tree_diagram.png')
-
+    
+    #Plot entropy vs gini values
+    plot_info_functions('entropy_vs_gini.png')
+    
 #Execute Main ========================================================
 if __name__ == "__main__":
     main()
