@@ -222,8 +222,8 @@ def plot_info_functions(filename=None):
 
     plt.title('Information Metrics: Cross-Entropy vs Gini')
     plt.xlabel('Proportion of Class A vs B')
-    ax1.set_ylabel('Impurity')
-    ax2.set_ylabel('Impurity')
+    ax1.set_ylabel('Impurity - Gini')
+    ax2.set_ylabel('Impurity - Cross-Entropy')
 
     ax1.plot(X,gini,linestyle='solid',label='gini')
     ax2.plot(X,entropy,linestyle='dashed',label='cross-entropy')
