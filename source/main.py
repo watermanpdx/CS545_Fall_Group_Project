@@ -298,7 +298,7 @@ def plot_pruning(X,Y,filename=None):
 
     return
 
-def plot_tree(X,Y,max_depth=4,features=None,filename=None):
+def plot_tree(X,Y,max_depth=4,ccp_alpha=0.0,features=None,filename=None):
     #Plot tree flowchart
     #  Plot resultant trained tree as human-readable diagram
     #Inputs:    X - (numpy array) input data
@@ -315,7 +315,7 @@ def plot_tree(X,Y,max_depth=4,features=None,filename=None):
 
     #Train and plot model
     print('Training model ...')
-    model = DecisionTreeClassifier(max_depth=max_depth)
+    model = DecisionTreeClassifier(max_depth=max_depth,ccp_alpha=ccp_alpha)
     model.fit(x_train,y_train)
     acc = 100*model.score(x_test,y_test)
     print('Resultant (test) tree accuracy: ' + str(round(acc,2)) + '%')
@@ -342,7 +342,7 @@ def main():
     features = list(data.head())[1:-2]
     Y = np.array(data)[:,-1].astype(int)
     X = np.array(data)[:,1:-2]
-    
+
     #Benchmark models
     models = [DecisionTreeClassifier(),
               RandomForestClassifier(),
@@ -365,12 +365,15 @@ def main():
     #Test performance over pruning values
     plot_pruning(X,Y,filename='pruning_analysis.png')
 
+    plot_tree(X,Y,max_depth=None,ccp_alpha=0.005,
+              features=features,filename='tree_diagram_pruning.png')
+
     #Train and plot model
     plot_tree(X,Y,features=features,filename='tree_diagram.png')
     
     #Plot entropy vs gini values
     plot_info_functions('entropy_vs_gini.png')
-    
+
 #Execute Main ========================================================
 if __name__ == "__main__":
     main()
