@@ -13,7 +13,7 @@ Authors:        Tayte Waterman
                 Brandon Gatewood
 Course:         CS445/CS545 - Machine Learning
 Assignment:     CS445/CS545 - Group Project
-Date:           12/03/2022
+Date:           12/05/2022
 ======================================================================
 '''
 
@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 #Supporting Sklearn functions
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_validate
+from sklearn.inspection import permutation_importance
 
 #Decision tree packages
 from sklearn import tree
@@ -334,6 +335,110 @@ def plot_tree(X,Y,max_depth=4,ccp_alpha=0.0,features=None,filename=None):
 
     return
 
+def plot_feature_importance(X,Y,features,max_features=10,filename=None):
+    #Plot tree flowchart
+    #  Plot resultant trained tree as human-readable diagram
+    #Inputs:    X - (numpy array) input data
+    #           Y - (numpy array) classification data
+    #           features - (list) model feature names (strings)
+    #           filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+
+    #Train model
+    print('Training model ...')
+    model = RandomForestClassifier()
+    model.fit(X,Y)
+
+    #Compute feature importances via impurity reduction
+    print('Computing feature importances ...')
+    importances = model.feature_importances_
+
+    #Sort features by importance and separate into plotable lists
+    data = [(features[i],importances[i]) for i in range(len(features))]
+    data.sort(reverse=True,key=lambda x:x[1])
+    p_features = []
+    p_importances = []
+    for i in range(min(len(data), max_features)):
+        p_features.append(data[i][0])
+        p_importances.append(data[i][1])
+
+    #Construct plot
+    plt.figure('Feature Importance')
+
+    plt.title('Impurity-Based Variable Importance (Top ' + str(max_features) + ')')
+    plt.xlabel('Features')
+    plt.ylabel('Mean Gini Impurity Decrease')
+    plt.xticks(rotation=90)
+    
+    plt.bar(p_features,p_importances)
+
+    plt.tight_layout()
+
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
+def plot_bootstrap_features(X,Y,sizes,features,filename=None):
+    #Plot tree flowchart
+    #  Plot resultant trained tree as human-readable diagram
+    #Inputs:    X - (numpy array) input data
+    #           Y - (numpy array) classification data
+    #           sizes - (list) of max features sizes to test
+    #           features - (list) model feature names (strings)
+    #                      (used for computing sqrt(features))
+    #           filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+
+    #Build training and testing sets
+    print('Splitting data into training and test sets ...')
+    x_train, x_test, y_train, y_test = train_test_split(X,Y)
+
+    #Assess model performance over max feature sizes
+    print('Assessing model performance ...')
+    e_train = []
+    e_test = []
+    for i in range(len(sizes)):
+        print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
+              + str(sizes[i]) + ' max features')
+        model = RandomForestClassifier(max_samples=500,max_features=sizes[i])
+        model.fit(X,Y)
+        
+        e_train.append(100*model.score(x_train,y_train))
+        e_test.append(100*model.score(x_test,y_test))
+        
+    #Construct plot
+    plt.figure('Bootstrapping Feature Size')
+
+    plt.title('Forest Accuracy vs Max Bootstrapping Features')
+    plt.xlabel('Number of Features')
+    plt.ylabel('Accuracy (%)')
+    
+    plt.plot(sizes,e_train,linestyle='solid',label='training')
+    plt.plot(sizes,e_test,linestyle='dashed',label='test')
+
+    pos = math.sqrt(len(features))
+    plt.axvline(x=pos,linestyle='dashed',c='black',label='sqrt(total features)')
+
+    plt.legend()
+    
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
 #Main ----------------------------------------------------------------
 def main():
     #Import dataset from .csv; not yet split into training/test sets
@@ -342,6 +447,16 @@ def main():
     features = list(data.head())[1:-2]
     Y = np.array(data)[:,-1].astype(int)
     X = np.array(data)[:,1:-2]
+
+    '''
+    #Forest accuracy vs feature size in bagging
+    sizes = [1,5,10,25,50,75,100,150,200,250,300,350,400,450,
+             500,550,600,650,700,750,800,850,900,950,
+             1000,1250,1500,1750,2000]
+    plot_bootstrap_features(X,Y,sizes,features,'bootstrapping_features.png')
+
+    #Random Forest feature importance
+    plot_feature_importance(X,Y,features,25,'forest_feature_importance.png')
 
     #Benchmark models
     models = [DecisionTreeClassifier(),
@@ -373,6 +488,7 @@ def main():
     
     #Plot entropy vs gini values
     plot_info_functions('entropy_vs_gini.png')
+    '''
 
 #Execute Main ========================================================
 if __name__ == "__main__":
