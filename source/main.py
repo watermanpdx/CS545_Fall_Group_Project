@@ -336,8 +336,8 @@ def plot_tree(X,Y,max_depth=4,ccp_alpha=0.0,features=None,filename=None):
     return
 
 def plot_feature_importance(X,Y,features,max_features=10,filename=None):
-    #Plot tree flowchart
-    #  Plot resultant trained tree as human-readable diagram
+    #Plot feature significance
+    #  Extract feature significance from forest impurity metrics
     #Inputs:    X - (numpy array) input data
     #           Y - (numpy array) classification data
     #           features - (list) model feature names (strings)
@@ -385,9 +385,9 @@ def plot_feature_importance(X,Y,features,max_features=10,filename=None):
 
     return
 
-def plot_bootstrap_features(X,Y,sizes,features,filename=None):
-    #Plot tree flowchart
-    #  Plot resultant trained tree as human-readable diagram
+def plot_forest_feature_size(X,Y,sizes,features,filename=None):
+    #Plot forest accuracy as a function of feature size
+    #  Forest accuracy against feature size during bootstrapping
     #Inputs:    X - (numpy array) input data
     #           Y - (numpy array) classification data
     #           sizes - (list) of max features sizes to test
@@ -410,7 +410,7 @@ def plot_bootstrap_features(X,Y,sizes,features,filename=None):
         print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
               + str(sizes[i]) + ' max features')
         model = RandomForestClassifier(max_samples=500,max_features=sizes[i])
-        model.fit(X,Y)
+        model.fit(x_train,y_train)
         
         e_train.append(100*model.score(x_train,y_train))
         e_test.append(100*model.score(x_test,y_test))
@@ -421,12 +421,170 @@ def plot_bootstrap_features(X,Y,sizes,features,filename=None):
     plt.title('Forest Accuracy vs Max Bootstrapping Features')
     plt.xlabel('Number of Features')
     plt.ylabel('Accuracy (%)')
+
+    pos = math.sqrt(len(features))
+    plt.axvline(x=pos,linestyle='dashed',c='black',label='sqrt(total features)')
     
     plt.plot(sizes,e_train,linestyle='solid',label='training')
     plt.plot(sizes,e_test,linestyle='dashed',label='test')
 
-    pos = math.sqrt(len(features))
-    plt.axvline(x=pos,linestyle='dashed',c='black',label='sqrt(total features)')
+    plt.legend()
+    
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
+def plot_forest_estimator_size(X,Y,sizes,filename=None):
+    #Plot forest accuracy as a function of number of trees
+    #  Forest accuracy against contained trees in forest
+    #Inputs:    X - (numpy array) input data
+    #           Y - (numpy array) classification data
+    #           sizes - (list) of number of trees to test
+    #           filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+    
+    #Build training and testing sets
+    print('Splitting data into training and test sets ...')
+    x_train, x_test, y_train, y_test = train_test_split(X,Y)
+
+    #Assess model performance over max feature sizes
+    print('Assessing model performance ...')
+    e_train = []
+    e_test = []
+    for i in range(len(sizes)):
+        print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
+              + str(sizes[i]) + ' max features')
+        model = RandomForestClassifier(max_samples=500,n_estimators=sizes[i])
+        model.fit(x_train,y_train)
+        
+        e_train.append(100*model.score(x_train,y_train))
+        e_test.append(100*model.score(x_test,y_test))
+        
+    #Construct plot
+    plt.figure('Forest Estimator Size')
+
+    plt.title('Forest Accuracy vs Number of Estimators (Trees)')
+    plt.xlabel('Number of Trees')
+    plt.ylabel('Accuracy (%)')
+
+    plt.plot(sizes,e_train,linestyle='solid',label='training')
+    plt.plot(sizes,e_test,linestyle='dashed',label='test')
+
+    plt.legend()
+    
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
+def plot_forest_sample_size(X,Y,sizes,filename=None):
+    #Plot forest accuracy as a function of sample size
+    #  Forest accuracy against bootstrapping sample size
+    #Inputs:    X - (numpy array) input data
+    #           Y - (numpy array) classification data
+    #           sizes - (list) of max sample size to test
+    #           filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+    
+    #Build training and testing sets
+    print('Splitting data into training and test sets ...')
+    x_train, x_test, y_train, y_test = train_test_split(X,Y)
+
+    #Assess model performance over max feature sizes
+    print('Assessing model performance ...')
+    e_train = []
+    e_test = []
+    for i in range(len(sizes)):
+        print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
+              + str(sizes[i]) + ' max features')
+        model = RandomForestClassifier(max_samples=sizes[i])
+        model.fit(x_train,y_train)
+        
+        e_train.append(100*model.score(x_train,y_train))
+        e_test.append(100*model.score(x_test,y_test))
+        
+    #Construct plot
+    plt.figure('Forest Sample Size')
+
+    plt.title('Forest Accuracy vs Size of Bootstrapping Samples')
+    plt.xlabel('Sample Size')
+    plt.ylabel('Accuracy (%)')
+
+    plt.plot(sizes,e_train,linestyle='solid',label='training')
+    plt.plot(sizes,e_test,linestyle='dashed',label='test')
+
+    plt.legend()
+    
+    #Save plot to file or present to user directly
+    if filename != None:
+        print('Writing plot to file <' + filename + '> ...')
+        plt.savefig(filename)
+    else:
+        plt.show()
+
+    return
+
+def plot_forest_oob(X,Y,sizes,filename=None):
+    #Plot forest accuracy with oob enabled and disabled
+    #  Forest accuracy against contained trees in forest
+    #Inputs:    X - (numpy array) input data
+    #           Y - (numpy array) classification data
+    #           sizes - (list) of number of trees to test
+    #           filename - (string) filename to save to. Plots to
+    #                      window directly if not provided
+    #Outputs:   (filename) - saves to file if filename not None
+    #           return - None
+    
+    #Build training and testing sets
+    print('Splitting data into training and test sets ...')
+    x_train, x_test, y_train, y_test = train_test_split(X,Y)
+
+    #Assess model performance over max feature sizes
+    print('Assessing model performance ...')
+    e_train_oob = []
+    e_test_oob = []
+    e_train = []
+    e_test = []
+    for i in range(len(sizes)):
+        print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
+              + str(sizes[i]) + ' max features')
+        a = RandomForestClassifier(oob_score=True,max_samples=500,n_estimators=sizes[i])
+        a.fit(x_train,y_train)
+        
+        e_train_oob.append(100*a.score(x_train,y_train))
+        e_test_oob.append(100*a.score(x_test,y_test))
+
+        b = RandomForestClassifier(oob_score=False,max_samples=500,n_estimators=sizes[i])
+        b.fit(x_train,y_train)
+        
+        e_train.append(100*b.score(x_train,y_train))
+        e_test.append(100*b.score(x_test,y_test))
+        
+    #Construct plot
+    plt.figure('Forest OOB')
+
+    plt.title('Forest Accuracy OOB Enabled/Disabled')
+    plt.xlabel('Number of Trees')
+    plt.ylabel('Accuracy (%)')
+
+    plt.plot(sizes,e_train_oob,c='blue',linestyle='solid',label='enabled - training')
+    plt.plot(sizes,e_test_oob,c='orange',linestyle='dashed',label='enabled - test')
+
+    plt.plot(sizes,e_train,c='blue',linestyle='solid',label='disabled - training')
+    plt.plot(sizes,e_test,c='orange',linestyle='dashed',label='disabled - test')
 
     plt.legend()
     
@@ -449,12 +607,30 @@ def main():
     X = np.array(data)[:,1:-2]
 
     '''
+    #Forest performance oob enabled/disabled
+    sizes = [5,10,20,30,40,50,60,70,80,90,100,
+             110,120,130,140,150,160,170,180,190,200]
+    plot_forest_oob(X,Y,sizes,'forest_oob.png')
+
+    #Forest accuracy vs sample size
+    sizes = [1,10,20,30,40,50,60,70,80,90,100,125,150,175,
+             200,225,250,275,300,325,350,375,
+             400,425,450,475,500,550,600,650,700,750,
+             800,850,900,1000,1100,1200,1300,1400,1500,
+             1600,1700,1800,1900,2000]
+    plot_forest_sample_size(X,Y,sizes,'forest_max_samples.png')
+
+    #Forest accuracy vs number of estimators
+    sizes = [1,2,3,4,5,10,20,30,40,50,60,70,80,90,100,
+             110,120,130,140,150,160,170,180,190,200]
+    plot_forest_estimator_size(X,Y,sizes,'forest_n_estimators.png')
+    
     #Forest accuracy vs feature size in bagging
     sizes = [1,5,10,25,50,75,100,150,200,250,300,350,400,450,
              500,550,600,650,700,750,800,850,900,950,
              1000,1250,1500,1750,2000]
-    plot_bootstrap_features(X,Y,sizes,features,'bootstrapping_features.png')
-
+    plot_forest_feature_size(X,Y,sizes,features,'bootstrapping_features.png')
+    
     #Random Forest feature importance
     plot_feature_importance(X,Y,features,25,'forest_feature_importance.png')
 
