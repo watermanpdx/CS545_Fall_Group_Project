@@ -20,14 +20,15 @@ Date:           12/05/2022
 #Imports =============================================================
 #General support packages
 import math
+import time
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 #Supporting Sklearn functions
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_validate
 from sklearn.inspection import permutation_importance
+from sklearn.metrics import confusion_matrix
 
 #Decision tree packages
 from sklearn import tree
@@ -42,12 +43,29 @@ from sklearn.linear_model import LogisticRegression
 #Constants ===========================================================
 
 #Functions/Classes====================================================
-def benchmark(models,metrics,X,Y,filename=None):
+def print_features(features,per_line=10):
+    #Print feature set to terminal
+    #Inputs:    features - (list) features in dataset
+    #           per_line - number of features to print per line
+    #Outputs:   None - prints to terminal directly
+
+    #Print data to terminal
+    print("Input data features:")
+    line = []
+    for feature in features:
+        if len(line) < per_line:
+            line.append(feature)
+        else:
+            print('\t' + str(line)[1:-1])
+            line = []
+    print('\t' + str(line)[1:-1])
+    
+    return
+
+def benchmark(models,X,Y,filename=None):
     #Benchmark analysis of multiple classifier models
     #  Builds comparison table of different models over test data
     #Inputs:    models - (list) list of model objects to test
-    #           metrics - (list) string arguments for cross_validate
-    #                     to include in performance metrics results
     #           X - (numpy array) input data
     #           Y - (numpy array) classification data
     #           filename - (string) filename to save to (if provided)
@@ -57,22 +75,36 @@ def benchmark(models,metrics,X,Y,filename=None):
     #Initilize variables and initial user prompt
     print('Benchmarking models ...')
     results = pd.DataFrame()
-    header = None
+
+    #Create training and test datasets from X and Y
+    print('Splitting data into training and test sets ...')
+    x_train, x_test, y_train, y_test = train_test_split(X,Y)
 
     #Validate across provided models
     for model in models:
         name = model.__repr__()
         print('\tValidating ' + name + ' ...')
 
-        #Extract performance results
-        performance = cross_validate(model,X,Y,scoring=metrics)
+        #Train model
+        start = time.time()
+        model.fit(x_train,y_train)
+        fit_time = time.time() - start
 
-        #Define DataFrame headers if not yet set
-        if header == None:
-            header = ['model'] + [key for key in performance]
+        #Assess over test data and compute metrics
+        start = time.time()
+        y_predict = model.predict(x_test)
+        score_time = time.time() - start
+        
+        tn, fp, fn, tp = confusion_matrix(y_test,y_predict).ravel()
+        accuracy = (tp+tn)/(tp+tn+fp+fn)
+        precision = tp/(tp+fp)
+        recall = tp/(tp+fn)
 
         #Append results to DataFrame
-        data = [name] + [performance[key].mean() for key in performance]
+        header = ['model','fit time(s)', 'score time(s)', 'accuracy', 'precision',
+              'recall', 'TP', 'TN', 'FP', 'FN']
+        data = [name, fit_time, score_time, accuracy, precision,
+                recall, tp, tn, fp, fn]
         results = pd.concat([results, pd.DataFrame([data],columns=header)])
 
     #Reset and remove leading DataFrame indices
@@ -114,6 +146,7 @@ def plot_tree_size(nodes,X,Y,filename=None):
         e_test.append(100*model.score(x_test,y_test))
 
     #Construct plot
+    plt.close()
     plt.figure('Perfomance vs Tree Size')
 
     plt.title('Decision Tree Accuracy vs Tree Size')
@@ -172,6 +205,7 @@ def plot_greedy_criteria(nodes,X,Y,filename=None):
         e_entropy.append(100*entropy.score(x_train,y_train))
 
     #Construct plot
+    plt.close()
     plt.figure('Split Criteria Performance')
 
     plt.title('Decision Tree Accuracy vs Tree Size Across Split Criteria')
@@ -216,6 +250,7 @@ def plot_info_functions(filename=None):
             entropy.append(-p0*math.log2(p0) - p1*math.log2(p1))
 
     #Construct plot
+    plt.close()
     fig,ax1 = plt.subplots()
     ax2 = plt.twinx()
     if filename == None:
@@ -279,6 +314,7 @@ def plot_pruning(X,Y,filename=None):
         e_test.append(100*model.score(x_test,y_test))
 
     #Construct plot
+    plt.close()
     plt.figure('Tree Performance vs Alpha Threshold')
 
     plt.title('Decision Tree Accuracy vs Pruning Alpha Threshold')
@@ -322,6 +358,7 @@ def plot_tree(X,Y,max_depth=4,ccp_alpha=0.0,features=None,filename=None):
     print('Resultant (test) tree accuracy: ' + str(round(acc,2)) + '%')
 
     #Construct plot
+    plt.close()
     plt.figure('Decision Tree Diagram')
     
     tree.plot_tree(model,feature_names=features,filled=True)
@@ -365,6 +402,7 @@ def plot_feature_importance(X,Y,features,max_features=10,filename=None):
         p_importances.append(data[i][1])
 
     #Construct plot
+    plt.close()
     plt.figure('Feature Importance')
 
     plt.title('Impurity-Based Variable Importance (Top ' + str(max_features) + ')')
@@ -416,6 +454,7 @@ def plot_forest_feature_size(X,Y,sizes,features,filename=None):
         e_test.append(100*model.score(x_test,y_test))
         
     #Construct plot
+    plt.close()
     plt.figure('Bootstrapping Feature Size')
 
     plt.title('Forest Accuracy vs Max Bootstrapping Features')
@@ -425,55 +464,6 @@ def plot_forest_feature_size(X,Y,sizes,features,filename=None):
     pos = math.sqrt(len(features))
     plt.axvline(x=pos,linestyle='dashed',c='black',label='sqrt(total features)')
     
-    plt.plot(sizes,e_train,linestyle='solid',label='training')
-    plt.plot(sizes,e_test,linestyle='dashed',label='test')
-
-    plt.legend()
-    
-    #Save plot to file or present to user directly
-    if filename != None:
-        print('Writing plot to file <' + filename + '> ...')
-        plt.savefig(filename)
-    else:
-        plt.show()
-
-    return
-
-def plot_forest_estimator_size(X,Y,sizes,filename=None):
-    #Plot forest accuracy as a function of number of trees
-    #  Forest accuracy against contained trees in forest
-    #Inputs:    X - (numpy array) input data
-    #           Y - (numpy array) classification data
-    #           sizes - (list) of number of trees to test
-    #           filename - (string) filename to save to. Plots to
-    #                      window directly if not provided
-    #Outputs:   (filename) - saves to file if filename not None
-    #           return - None
-    
-    #Build training and testing sets
-    print('Splitting data into training and test sets ...')
-    x_train, x_test, y_train, y_test = train_test_split(X,Y)
-
-    #Assess model performance over max feature sizes
-    print('Assessing model performance ...')
-    e_train = []
-    e_test = []
-    for i in range(len(sizes)):
-        print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
-              + str(sizes[i]) + ' max features')
-        model = RandomForestClassifier(max_samples=500,n_estimators=sizes[i])
-        model.fit(x_train,y_train)
-        
-        e_train.append(100*model.score(x_train,y_train))
-        e_test.append(100*model.score(x_test,y_test))
-        
-    #Construct plot
-    plt.figure('Forest Estimator Size')
-
-    plt.title('Forest Accuracy vs Number of Estimators (Trees)')
-    plt.xlabel('Number of Trees')
-    plt.ylabel('Accuracy (%)')
-
     plt.plot(sizes,e_train,linestyle='solid',label='training')
     plt.plot(sizes,e_test,linestyle='dashed',label='test')
 
@@ -517,6 +507,7 @@ def plot_forest_sample_size(X,Y,sizes,filename=None):
         e_test.append(100*model.score(x_test,y_test))
         
     #Construct plot
+    plt.close()
     plt.figure('Forest Sample Size')
 
     plt.title('Forest Accuracy vs Size of Bootstrapping Samples')
@@ -537,8 +528,8 @@ def plot_forest_sample_size(X,Y,sizes,filename=None):
 
     return
 
-def plot_forest_oob(X,Y,sizes,filename=None):
-    #Plot forest accuracy with oob enabled and disabled
+def plot_forest_estimator_size(X,Y,sizes,filename=None,oob=False):
+    #Plot forest accuracy as a function of number of trees
     #  Forest accuracy against contained trees in forest
     #Inputs:    X - (numpy array) input data
     #           Y - (numpy array) classification data
@@ -554,37 +545,32 @@ def plot_forest_oob(X,Y,sizes,filename=None):
 
     #Assess model performance over max feature sizes
     print('Assessing model performance ...')
-    e_train_oob = []
-    e_test_oob = []
     e_train = []
     e_test = []
+    e_oob = []
     for i in range(len(sizes)):
         print('\t' + str(i+1) + ' of ' + str(len(sizes)) + ' : '
               + str(sizes[i]) + ' max features')
-        a = RandomForestClassifier(oob_score=True,max_samples=500,n_estimators=sizes[i])
-        a.fit(x_train,y_train)
+        model = RandomForestClassifier(oob_score=oob,max_samples=500,n_estimators=sizes[i])
+        model.fit(x_train,y_train)
         
-        e_train_oob.append(100*a.score(x_train,y_train))
-        e_test_oob.append(100*a.score(x_test,y_test))
+        e_train.append(100*model.score(x_train,y_train))
+        e_test.append(100*model.score(x_test,y_test))
 
-        b = RandomForestClassifier(oob_score=False,max_samples=500,n_estimators=sizes[i])
-        b.fit(x_train,y_train)
-        
-        e_train.append(100*b.score(x_train,y_train))
-        e_test.append(100*b.score(x_test,y_test))
+        if oob: e_oob.append(100*model.oob_score_)
         
     #Construct plot
-    plt.figure('Forest OOB')
+    plt.close()
+    plt.figure('Forest Estimator Size')
 
-    plt.title('Forest Accuracy OOB Enabled/Disabled')
+    plt.title('Forest Accuracy vs Number of Estimators (Trees)')
     plt.xlabel('Number of Trees')
     plt.ylabel('Accuracy (%)')
 
-    plt.plot(sizes,e_train_oob,c='blue',linestyle='solid',label='enabled - training')
-    plt.plot(sizes,e_test_oob,c='orange',linestyle='dashed',label='enabled - test')
-
-    plt.plot(sizes,e_train,c='blue',linestyle='solid',label='disabled - training')
-    plt.plot(sizes,e_test,c='orange',linestyle='dashed',label='disabled - test')
+    plt.plot(sizes,e_train,linestyle='solid',label='training')
+    plt.plot(sizes,e_test,linestyle='dashed',label='test')
+    if oob: plt.plot(sizes,e_oob,c='gray',
+             linestyle='dotted',label='OOB (training)')
 
     plt.legend()
     
@@ -603,15 +589,20 @@ def main():
     print('Importing data ...')
     data = pd.read_csv('emails.csv')
     features = list(data.head())[1:-2]
+    #print_features(features)
     Y = np.array(data)[:,-1].astype(int)
     X = np.array(data)[:,1:-2]
+    print('\t(Percent positives in data: ' + str(round(100*Y.mean(),2)) + '%)')
 
+    #Benchmark models
+    models = [DecisionTreeClassifier(),
+              RandomForestClassifier(),
+              SVC(),
+              GaussianNB(),
+              LogisticRegression()]
+    benchmark(models,X,Y,filename='results.csv')
+    
     '''
-    #Forest performance oob enabled/disabled
-    sizes = [5,10,20,30,40,50,60,70,80,90,100,
-             110,120,130,140,150,160,170,180,190,200]
-    plot_forest_oob(X,Y,sizes,'forest_oob.png')
-
     #Forest accuracy vs sample size
     sizes = [1,10,20,30,40,50,60,70,80,90,100,125,150,175,
              200,225,250,275,300,325,350,375,
@@ -619,11 +610,14 @@ def main():
              800,850,900,1000,1100,1200,1300,1400,1500,
              1600,1700,1800,1900,2000]
     plot_forest_sample_size(X,Y,sizes,'forest_max_samples.png')
-
+    
     #Forest accuracy vs number of estimators
-    sizes = [1,2,3,4,5,10,20,30,40,50,60,70,80,90,100,
-             110,120,130,140,150,160,170,180,190,200]
+    sizes = [5,10,20,30,40,50,60,70,80,90,100,
+             110,120,130,140,150,160,170,180,190,200,
+             225,250,275,300,325,350,375,400,
+             425,450,475,500]
     plot_forest_estimator_size(X,Y,sizes,'forest_n_estimators.png')
+    plot_forest_estimator_size(X,Y,sizes,'forest_n_estimators_oob.png',oob=True)
     
     #Forest accuracy vs feature size in bagging
     sizes = [1,5,10,25,50,75,100,150,200,250,300,350,400,450,
@@ -634,15 +628,6 @@ def main():
     #Random Forest feature importance
     plot_feature_importance(X,Y,features,25,'forest_feature_importance.png')
 
-    #Benchmark models
-    models = [DecisionTreeClassifier(),
-              RandomForestClassifier(),
-              SVC(),
-              GaussianNB(),
-              LogisticRegression()]
-    metrics = ['accuracy','precision','recall']
-    benchmark(models,metrics,X,Y,filename='results.csv')
-    
     #Test performance over greedy optimization methods
     nodes = [2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,
              100,110,120,130,140,150,160,170,180,190,200]
