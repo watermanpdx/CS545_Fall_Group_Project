@@ -597,7 +597,7 @@ def main():
     #Benchmark models
     models = [DecisionTreeClassifier(),
               RandomForestClassifier(),
-              SVC(),
+              SVC(C=100,kernel='rbf'),
               GaussianNB(),
               LogisticRegression()]
     benchmark(models,X,Y,filename='results.csv')
