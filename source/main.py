@@ -597,12 +597,12 @@ def main():
     #Benchmark models
     models = [DecisionTreeClassifier(),
               RandomForestClassifier(),
+              SVC(),
               SVC(C=100,kernel='rbf'),
               GaussianNB(),
               LogisticRegression()]
     benchmark(models,X,Y,filename='results.csv')
     
-    '''
     #Forest accuracy vs sample size
     sizes = [1,10,20,30,40,50,60,70,80,90,100,125,150,175,
              200,225,250,275,300,325,350,375,
@@ -649,7 +649,6 @@ def main():
     
     #Plot entropy vs gini values
     plot_info_functions('entropy_vs_gini.png')
-    '''
 
 #Execute Main ========================================================
 if __name__ == "__main__":
